@@ -1,0 +1,74 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: atlas
+  name: atlas
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: atlas
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: atlas
+    spec:
+      containers:
+      - image: sburn/apache-atlas
+        imagePullPolicy: Always
+        name: atlas
+        command:  ["/opt/apache-atlas-2.1.0/bin/atlas_start.py"]
+        env:
+        - name: ATLAS_SERVER_HEAP
+          value: "-Xms7360m -Xmx7360m -XX:MaxNewSize=2120m -XX:MetaspaceSize=50M -XX:MaxMetaspaceSize=256m"
+        - name: ATLAS_DATA_DIR
+          value: "/opt/data"
+        ports:
+          - containerPort: 21000
+        resources: 
+          requests:
+            cpu: 2
+            memory: 8Gi
+          limits:
+            cpu: 2
+            memory: 8Gi
+        volumeMounts:
+          - mountPath: "/opt/data"
+            name: volume
+      volumes:
+        - name: volume
+          persistentVolumeClaim:
+            claimName: data-disk
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-disk
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: managed-premium
+  resources:
+    requests:
+      storage: 128Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: atlas
+  name: atlas
+  namespace: default
+spec:
+  ports:
+  - port: 21000
+    protocol: TCP
+    targetPort: 21000
+  selector:
+    app: atlas
+  type: LoadBalancer
+
